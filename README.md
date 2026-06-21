@@ -1,11 +1,21 @@
 # Continuity
 
-A personal agent that **remembers what matters** and **forgets what doesn't** — then
+A personal agent that **remembers what matters** and **forgets what doesn't**, then
 closes your open loops before you ask. Not a vector store with a chat box: a
 self-evolving memory that **reinforces** on use, **decays** when ignored, **supersedes**
 itself on contradiction, and **surfaces** the right thing unprompted.
 
 Tracks: **Best Use of Memory/Context** (the engine) + **Best Agent People Love** (proactive recall).
+
+## Screenshots
+
+**The live agent.** Memory restored from HydraDB across sessions, a real knowledge graph, open loops with salience, and the HydraDB execution log with request IDs and latency.
+
+![Continuity app: restored memory, knowledge graph, open loops, and the HydraDB execution log](docs/screenshots/app.png)
+
+**The landing.** Same prompt, different output: a generic reply versus one recalled from HydraDB.
+
+![Continuity landing: the before and after memory proof](docs/screenshots/landing.png)
 
 ## 24/7 autonomous agent (`agent/agent.mjs`)
 The web app is the memory + UI. The **daemon** is the autonomy: a scheduled worker on the
