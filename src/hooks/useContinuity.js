@@ -58,7 +58,7 @@ export function useContinuity() {
   const engine = engineRef.current
 
   const [messages, setMessages] = useState(() => [
-    msg('agent', "I'm Continuity. I remember what matters and let the rest fade, then close your open loops before you ask. Tell me what's going on, or hit New session to see what I'm still holding for you."),
+    msg('agent', "I'm Continuity. I remember what matters and let the rest fade, then close your open loops before you ask. Reload the tab and your memory restores from HydraDB. Try a chip below to watch me recall it, change my answer, and act."),
   ])
   const [snapshot, setSnapshot] = useState(() => engine.snapshot())
   const [logs, setLogs] = useState(() => logRef.current.list())

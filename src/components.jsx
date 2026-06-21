@@ -63,7 +63,7 @@ function ActionCard({ action, onSend }) {
 }
 
 const SUGGESTIONS = [
-  'I have an interview with Katie at Northwind on Tuesday',
+  'My doctor wants to prescribe amoxicillin',
   'Actually, I prefer afternoon meetings now',
   'Draft a follow-up to Katie',
   'I am waiting to hear back from Daniel',
