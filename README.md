@@ -1,5 +1,7 @@
 # Continuity
 
+**Live demo: [continuity-six.vercel.app](https://continuity-six.vercel.app)** · self-evolving memory on HydraDB
+
 A personal agent that **remembers what matters** and **forgets what doesn't**, then
 closes your open loops before you ask. Not a vector store with a chat box: a
 self-evolving memory that **reinforces** on use, **decays** when ignored, **supersedes**
