@@ -69,6 +69,22 @@ function toThirdPerson(text) {
   return t.charAt(0).toUpperCase() + t.slice(1)
 }
 
+// Display-time only: render stored third-person memory ("The user is...") as
+// natural second person ("You're...") for user-facing text. Never mutates what
+// is stored in HydraDB — the canonical form stays third-person for the engine.
+const USER_NAME = (import.meta.env && import.meta.env.VITE_USER_NAME) || 'Me'
+export function toSecondPerson(text) {
+  if (!text) return text
+  return String(text)
+    .replace(/\bThe user's\b/g, 'Your').replace(/\bthe user's\b/g, 'your')
+    .replace(/\bThe user is\b/g, "You're").replace(/\bthe user is\b/g, "you're")
+    .replace(/\bThe user has been\b/g, "You've been").replace(/\bthe user has been\b/g, "you've been")
+    .replace(/\bThe user has\b/g, 'You have').replace(/\bthe user has\b/g, 'you have')
+    .replace(/\bThe user will\b/g, "You'll").replace(/\bthe user will\b/g, "you'll")
+    .replace(/\bThe user ([a-z]+)s\b/g, 'You $1').replace(/\bthe user ([a-z]+)s\b/g, 'you $1')
+    .replace(/\bThe user\b/g, 'You').replace(/\bthe user\b/g, 'you')
+}
+
 export function extractMemories(text) {
   const sentences = text.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 3)
   const source = sentences.length ? sentences : [text]
@@ -145,14 +161,17 @@ async function callLLM(memories, transcript, config) {
 function buildAction(text, memories) {
   const loop = memories.find((m) => m.kind === 'open_loop' && m.status !== 'resolved') || null
   const who = (loop && loop.entity) || 'there'
-  const topic = loop
-    ? loop.content.replace(/^The user('s)?\s*(has|is|will|has been|had)?\s*/i, '').replace(/\.$/, '')
+  let topic = loop
+    ? loop.content.replace(/^The user('s)?\s*(has|is|will|has been|had|was|wants?|needs?|is waiting)?\s*/i, '').replace(/\.$/, '')
     : 'our last conversation'
+  // Writing TO this person, so drop "with <them>" and shift to first person.
+  if (who !== 'there') topic = topic.replace(new RegExp('\\s*\\bwith ' + who + '\\b', 'i'), '')
+  topic = topic.replace(/\bthe user's\b/gi, 'my').replace(/\bthe user\b/gi, 'I')
   return {
     type: 'email_draft',
     to: who !== 'there' ? who : '',
     subject: loop && loop.entity ? 'Following up, ' + loop.entity : 'Quick follow-up',
-    body: 'Hi ' + who + ',\n\nJust circling back — ' + topic + '. Any update when you get a moment?\n\nBest,\n— You',
+    body: 'Dear ' + who + ',\n\nI wanted to follow up on ' + topic + '. Any update when you get a moment?\n\nBest,\n' + USER_NAME,
   }
 }
 
@@ -176,10 +195,28 @@ export function heuristicBrain(memories, transcript) {
   return { reply: buildReply(drafts, isActionCmd), memories: drafts, action, source: 'local' }
 }
 
+// Bulletproof safety beat: if the latest message is about a prescription and a
+// stored allergy makes it dangerous, surface the recall as a warning. Fires
+// whether the reply came from the LLM or the local heuristic.
+const RX_RE = /\b(prescrib|antibiotic|medication|medicine|pill|dose|amoxicillin|penicillin|put (you|me) on|take this)\b/i
+const PENICILLIN_CLASS = /\b(penicillin|amoxicillin|ampicillin|augmentin|amoxil|methicillin|flucloxacillin|piperacillin)\b/i
+export function allergyGuard(transcript, memories) {
+  if (!RX_RE.test(transcript)) return null
+  const allergy = (memories || []).find((m) => /allerg/i.test(m.content) && /penicillin/i.test(m.content) && m.status !== 'superseded')
+  if (!allergy) return null
+  const med = (transcript.match(PENICILLIN_CLASS) || [])[0]
+  if (!med) return null
+  return 'Heads up: you told me you are allergic to penicillin, and ' + med.toLowerCase() + ' is penicillin-class. Flag this with the prescriber before taking it.'
+}
+
 export async function callBrain(memories, transcript, config = {}) {
+  let result = null
   if (config.apiKey) {
-    try { return await callLLM(memories, transcript, config) }
+    try { result = await callLLM(memories, transcript, config) }
     catch (err) { console.warn('[brain] LLM failed -> local fallback:', err.message) }
   }
-  return heuristicBrain(memories, transcript)
+  if (!result) result = heuristicBrain(memories, transcript)
+  const warn = allergyGuard(transcript, memories)
+  if (warn) result = { ...result, reply: warn + (result.reply ? '\n\n' + result.reply : ''), guard: true }
+  return result
 }

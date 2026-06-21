@@ -18,6 +18,7 @@ const SEED_MEMORIES = [
   { content: 'The user prefers morning meetings over afternoons.', kind: 'preference', salience: 0.6, entity: null, predicate: 'meeting_time', last_reinforced: ago(40) },
   { content: 'The user takes their coffee black, no sugar.', kind: 'preference', salience: 0.5, entity: null, predicate: 'coffee' },
   { content: 'The user mentioned it was raining on the commute this morning.', kind: 'chatter', salience: 0.26, entity: null, predicate: null, created_at: ago(28), last_reinforced: ago(28) },
+  { content: 'The user is allergic to penicillin.', kind: 'fact', salience: 0.95, entity: null, predicate: 'allergy' },
 ]
 
 let mid = 0
@@ -57,7 +58,7 @@ export function useContinuity() {
   const engine = engineRef.current
 
   const [messages, setMessages] = useState(() => [
-    msg('agent', "I'm Continuity. I remember what matters and let the rest fade — then close your open loops before you ask. Tell me what's going on, or hit New session to see what I'm still holding for you."),
+    msg('agent', "I'm Continuity. I remember what matters and let the rest fade, then close your open loops before you ask. Tell me what's going on, or hit New session to see what I'm still holding for you."),
   ])
   const [snapshot, setSnapshot] = useState(() => engine.snapshot())
   const [logs, setLogs] = useState(() => logRef.current.list())
@@ -95,7 +96,13 @@ export function useContinuity() {
       setSnapshot(engine.snapshot())
       if (r && r.mode === 'restored') showToast('↺ ' + r.count + ' memories restored from HydraDB')
     }).catch(() => {})
-    engine.loadGraph().then((g) => { if (alive && g && g.nodes && g.nodes.length) setGraph(g) }).catch(() => {})
+    engine.loadGraph().then((g) => {
+      if (!alive) return
+      if (g && g.nodes && g.nodes.length) { setGraph(g); return }
+      // HydraDB graph_context was sparse; reflect the client memory-graph so the log count matches the viz.
+      const ents = [...new Set(engine.snapshot().memories.filter((m) => m.status === 'active' && m.entity).map((m) => m.entity))]
+      logRef.current.event({ op: 'graph', store: 'local', status: 'ok', detail: 'graph · ' + (ents.length + 1) + ' entities · ' + ents.length + ' relations (memory-derived)' })
+    }).catch(() => {})
     return () => { alive = false }
   }, [engine, showToast])
 

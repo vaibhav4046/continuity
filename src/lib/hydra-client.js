@@ -260,7 +260,7 @@ export class HydraClient {
       }
       const nodes = Array.from(nodeMap.values())
       this.healthy = true
-      h.ok({ detail: 'graph · ' + nodes.length + ' entities · ' + edges.length + ' relations', request_id: (data.meta || {}).request_id || null })
+      h.ok({ detail: nodes.length ? ('graph · ' + nodes.length + ' entities · ' + edges.length + ' relations') : 'graph_context sparse · deriving from memory', request_id: (data.meta || {}).request_id || null })
       return { ok: true, nodes, edges }
     } catch (err) {
       this.healthy = false

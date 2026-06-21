@@ -3,6 +3,7 @@
 // LogDock (HydraDB execution-log proof), Toast, Landing hero.
 
 import { useEffect, useRef, useState } from 'react'
+import { toSecondPerson } from './lib/brain.js'
 
 // ---------------- Logo: graphite cairn rising into a gold cloud ----------------
 export function Logo({ pulse }) {
@@ -55,7 +56,7 @@ function ActionCard({ action, onSend }) {
       </div>
       <div className="action-row"><span className="lbl mono">to</span><span>{action.payload.to || '—'}</span></div>
       <div className="action-row"><span className="lbl mono">subject</span><span>{action.payload.subject}</span></div>
-      <pre className="action-body">{action.payload.body}</pre>
+      <pre className="action-body">{toSecondPerson(action.payload.body)}</pre>
       {!sent && <button className="btn-send-mail" onClick={() => onSend(action.id)}>Send &amp; close loop</button>}
     </div>
   )
@@ -88,7 +89,7 @@ export function Chat({ messages, busy, onSend, onSendAction }) {
         {messages.map((m) => (
           <div key={m.id} className={'msg ' + m.role + ' ' + (m.proactive ? 'proactive' : '')}>
             {m.proactive && <span className="proactive-tag mono">proactive recall</span>}
-            <div className="bubble">{m.text}</div>
+            <div className="bubble">{toSecondPerson(m.text)}</div>
             {m.action && <ActionCard action={m.action} onSend={onSendAction} />}
           </div>
         ))}
@@ -142,16 +143,46 @@ function MemChip({ mem, score, highlighted }) {
     <div className={cls.join(' ')}>
       <div className="chip-top">
         <span className={'kind mono k-' + mem.kind}>{KIND_LABEL[mem.kind] || mem.kind}</span>
-        {mem.entity && <span className="entity">{mem.entity}</span>}
+        {mem.entity && <span className="entity">{toSecondPerson(mem.entity)}</span>}
         {superseded && <span className="status-tag mono">superseded</span>}
         {archived && <span className="status-tag mono">forgotten</span>}
         {resolved && <span className="status-tag mono ok">resolved</span>}
         {score != null && <span className="score">{score.toFixed(2)}</span>}
       </div>
-      <div className="chip-content">{mem.content}</div>
+      <div className="chip-content">{toSecondPerson(mem.content)}</div>
       {!archived && !superseded && <Bar value={mem.eff} kind={mem.kind} />}
     </div>
   )
+}
+
+// Collapse first-person aliases (user / the user / I / me) into one canonical
+// "You" self-node and drop duplicate edges, for both HydraDB and local graphs.
+function normalizeGraph(g) {
+  const isSelf = (name) => /^(the\s+)?(user|i|me|you|self)$/i.test(String(name || '').trim())
+  const idMap = {}
+  const nodes = []
+  let selfAdded = false
+  for (const n of (g.nodes || [])) {
+    if (isSelf(n.name)) {
+      idMap[n.id] = 'self'
+      if (!selfAdded) { selfAdded = true; nodes.push({ ...n, id: 'self', name: 'You' }) }
+      continue
+    }
+    idMap[n.id] = n.id
+    nodes.push(n)
+  }
+  const edges = []
+  const eseen = new Set()
+  for (const e of (g.edges || [])) {
+    const s = idMap[e.source] || e.source
+    const t = idMap[e.target] || e.target
+    if (s === t) continue
+    const key = s + '>' + t
+    if (eseen.has(key)) continue
+    eseen.add(key)
+    edges.push({ ...e, source: s, target: t })
+  }
+  return { nodes, edges }
 }
 
 // Live knowledge graph from HydraDB's extracted entity-relation triplets —
@@ -171,11 +202,11 @@ function buildLocalGraph(memories) {
 function GraphPanel({ graph, memories }) {
   // Prefer HydraDB's extracted graph; fall back to a graph built from the live
   // memories so the viz always renders even when graph extraction is sparse.
-  const g = (graph && graph.nodes && graph.nodes.length >= 2) ? graph : buildLocalGraph(memories)
+  const g = normalizeGraph((graph && graph.nodes && graph.nodes.length >= 2) ? graph : buildLocalGraph(memories))
   if (!g.nodes || g.nodes.length < 2) return null
   const W = 356, H = 210, cx = W / 2, cy = H / 2, R = 80
   const nodes = g.nodes.slice(0, 8)
-  const hub = nodes.find((n) => /user/i.test(n.name)) || nodes[0]
+  const hub = nodes.find((n) => n.id === 'self' || /^you$/i.test(n.name)) || nodes[0]
   const others = nodes.filter((n) => n !== hub)
   const pos = { [hub.id]: { x: cx, y: cy } }
   others.forEach((n, i) => {
@@ -278,6 +309,10 @@ export function LogDock({ logs, open, onToggle }) {
   }, [logs, open])
 
   const ops = logs.length
+  const copyLogs = () => {
+    const text = logs.map((l) => [fmtTs(l.ts), (l.op || '').toUpperCase(), l.store, l.status, l.detail, (l.latency_ms != null ? l.latency_ms + 'ms' : ''), (l.request_id || '')].filter(Boolean).join('  ')).join('\n')
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text)
+  }
   return (
     <section className={'logdock ' + (open ? '' : 'collapsed')} aria-label="HydraDB execution log">
       <div className="logdock-head" onClick={onToggle} role="button" tabIndex={0}
@@ -285,7 +320,10 @@ export function LogDock({ logs, open, onToggle }) {
         <span className="logdock-title mono">
           <span className="live-dot" /> hydradb execution log
         </span>
-        <span className="mono engine-stat">{ops} ops · {open ? 'hide' : 'show'}</span>
+        <span className="mono engine-stat">
+          <button className="logdock-copy" onClick={(e) => { e.stopPropagation(); copyLogs() }} disabled={!ops}>copy logs</button>
+          {ops} ops · {open ? 'hide' : 'show'}
+        </span>
       </div>
       <div className="logdock-body" ref={bodyRef}>
         {logs.length === 0 && <div className="empty mono">no operations yet</div>}

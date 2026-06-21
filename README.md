@@ -17,6 +17,18 @@ Tracks: **Best Use of Memory/Context** (the engine) + **Best Agent People Love**
 
 ![Continuity landing: the before and after memory proof](docs/screenshots/landing.png)
 
+## How HydraDB is the primary memory
+
+Every durable fact is written to HydraDB (`POST /context/ingest`) and every recall is a query (`POST /query`). There is no localStorage: on startup the agent restores its whole memory set from HydraDB, which is why context survives a tab close. The memory graph and the open loops are reconstructed from what HydraDB returns, and each operation is traced in the execution-log dock with a request ID and latency.
+
+## 60-second demo script
+
+1. **Seeded memory.** Open the app. The engine panel already holds memories restored from HydraDB (interview with Katie, allergic to penicillin), and the execution log shows the `restored N memories` query with a request ID.
+2. **Add a fact.** Type `My dentist is Dr. Mehta`. A new memory appears and a `WRITE hydradb ok` row lands in the log.
+3. **Hard-reload (the amnesia killer).** Refresh the tab. The banner reads "N memories restored from HydraDB, your context survived the tab close." Nothing was in localStorage; it all came back from HydraDB.
+4. **Memory changes the answer.** Type `the doctor wants to prescribe amoxicillin`. The agent recalls your stored allergy and warns: "Heads up: you told me you are allergic to penicillin, and amoxicillin is penicillin-class." The output changed because of what it remembered.
+5. **Point at the proof.** Open the HydraDB execution log (bottom dock) and hit **Copy logs**. Every write and recall is there with request IDs and latency.
+
 ## 24/7 autonomous agent (`agent/agent.mjs`)
 The web app is the memory + UI. The **daemon** is the autonomy: a scheduled worker on the
 *same live HydraDB memory* that reasons over your open loops and acts — runnable locally,
