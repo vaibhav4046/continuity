@@ -1,0 +1,16 @@
+{
+  "name": "continuity-remotion",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "render": "remotion render index.js ContinuityExplainer ../public/continuity-intro.mp4 --concurrency=2"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "remotion": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

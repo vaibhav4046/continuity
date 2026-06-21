@@ -1,0 +1,25 @@
+{
+  "name": "continuity",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A personal agent that remembers what matters and forgets what doesn't.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "agent": "node agent/agent.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "nodemailer": "^9.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11",
+    "vitest": "^4.1.9"
+  }
+}
